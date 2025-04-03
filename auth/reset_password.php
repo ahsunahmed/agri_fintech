@@ -8,7 +8,7 @@ if (!isset($_GET['token']) || empty($_GET['token'])) {
     exit();
 }
 
-$token = $_GET['token'];
+$token = htmlspecialchars($_GET['token']);
 ?>
 
 <!DOCTYPE html>
@@ -27,15 +27,12 @@ $token = $_GET['token'];
         <h4 class="text-center mb-3">Reset Your Password</h4>
 
         <!-- Alert Box for Errors -->
-        <?php
-        if (isset($_SESSION['reset_error'])) {
-            echo '<div class="alert alert-danger">' . $_SESSION['reset_error'] . '</div>';
-            unset($_SESSION['reset_error']);
-        }
-        ?>
+        <?php if (isset($_SESSION['reset_error'])): ?>
+            <div class="alert alert-danger"><?php echo $_SESSION['reset_error']; unset($_SESSION['reset_error']); ?></div>
+        <?php endif; ?>
 
-        <form id="resetPasswordForm" action="process_reset_password.php" method="POST">
-            <input type="hidden" name="token" value="<?php echo htmlspecialchars($token); ?>">
+        <form id="resetPasswordForm" action="process_password_reset.php" method="POST">
+            <input type="hidden" name="token" value="<?php echo $token; ?>">
 
             <div class="mb-3">
                 <label for="password" class="form-label">New Password</label>

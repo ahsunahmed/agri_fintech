@@ -1,3 +1,7 @@
+<?php
+session_start();
+?>
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -14,16 +18,13 @@
         <h4 class="text-center mb-3">Reset Your Password</h4>
         
         <!-- Alert Box (Displays Messages) -->
-        <?php
-        if (isset($_SESSION['reset_msg'])) {
-            echo '<div class="alert alert-info">' . $_SESSION['reset_msg'] . '</div>';
-            unset($_SESSION['reset_msg']); // Remove message after displaying
-        }
-        if (isset($_SESSION['reset_error'])) {
-            echo '<div class="alert alert-danger">' . $_SESSION['reset_error'] . '</div>';
-            unset($_SESSION['reset_error']);
-        }
-        ?>
+        <?php if (isset($_SESSION['reset_msg'])): ?>
+            <div class="alert alert-info"><?php echo $_SESSION['reset_msg']; unset($_SESSION['reset_msg']); ?></div>
+        <?php endif; ?>
+        
+        <?php if (isset($_SESSION['reset_error'])): ?>
+            <div class="alert alert-danger"><?php echo $_SESSION['reset_error']; unset($_SESSION['reset_error']); ?></div>
+        <?php endif; ?>
 
         <form id="forgotPasswordForm" action="process_forgot_password.php" method="POST">
             <div class="mb-3">
