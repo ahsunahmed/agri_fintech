@@ -1,7 +1,7 @@
 <?php
 session_start();
+require_once 'config.php'; // DB connection
 
-// Get reset token from URL
 if (!isset($_GET['token']) || empty($_GET['token'])) {
     $_SESSION['reset_error'] = "Invalid or expired reset link.";
     header("Location: forgot_password.php");
@@ -9,16 +9,48 @@ if (!isset($_GET['token']) || empty($_GET['token'])) {
 }
 
 $token = htmlspecialchars($_GET['token']);
+
+// Validate token and expiry (within 30 minutes)
+$stmt = $conn->prepare("SELECT email, created_at FROM password_resets WHERE token = ?");
+$stmt->bind_param("s", $token);
+$stmt->execute();
+$stmt->store_result();
+
+if ($stmt->num_rows === 0) {
+    $_SESSION['reset_error'] = "Invalid or expired reset link.";
+    header("Location: forgot_password.php");
+    exit();
+}
+
+$stmt->bind_result($email, $created_at);
+$stmt->fetch();
+$stmt->close();
+
+// Check if token expired (older than 30 minutes)
+$created_time = strtotime($created_at);
+$current_time = time();
+$diff_minutes = ($current_time - $created_time) / 60;
+
+if ($diff_minutes > 30) {
+    $_SESSION['reset_error'] = "Reset link has expired. Please request a new one.";
+    // Optionally delete old token
+    $stmt = $conn->prepare("DELETE FROM password_resets WHERE token = ?");
+    $stmt->bind_param("s", $token);
+    $stmt->execute();
+    $stmt->close();
+
+    header("Location: forgot_password.php");
+    exit();
+}
 ?>
 
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Reset Password | Fintech Agriculture</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
-    <link rel="stylesheet" href="assets/css/style.css"> <!-- Custom Styles -->
+    <link rel="stylesheet" href="assets/css/style.css">
 </head>
 <body class="bg-light">
 
@@ -26,7 +58,6 @@ $token = htmlspecialchars($_GET['token']);
     <div class="card shadow p-4" style="width: 400px;">
         <h4 class="text-center mb-3">Reset Your Password</h4>
 
-        <!-- Alert Box for Errors -->
         <?php if (isset($_SESSION['reset_error'])): ?>
             <div class="alert alert-danger"><?php echo $_SESSION['reset_error']; unset($_SESSION['reset_error']); ?></div>
         <?php endif; ?>
