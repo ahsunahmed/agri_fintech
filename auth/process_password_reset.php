@@ -1,60 +1,86 @@
 <?php
 session_start();
-require_once 'config.php'; // Database connection
+require_once 'config.php'; // DB connection
 
 if ($_SERVER["REQUEST_METHOD"] === "POST") {
-    $token = $_POST['token'];
-    $new_password = $_POST['password'];
-    $confirm_password = $_POST['confirm_password'];
+    $email = trim($_POST['email']);
 
-    // Validate password
-    if (strlen($new_password) < 6) {
-        $_SESSION['reset_error'] = "Password must be at least 6 characters.";
-        header("Location: reset_password.php?token=" . urlencode($token));
-        exit();
-    }
-    if ($new_password !== $confirm_password) {
-        $_SESSION['reset_error'] = "Passwords do not match.";
-        header("Location: reset_password.php?token=" . urlencode($token));
-        exit();
-    }
-
-    // Check if token is valid
-    $stmt = $conn->prepare("SELECT email FROM password_resets WHERE token = ?");
-    $stmt->bind_param("s", $token);
-    $stmt->execute();
-    $stmt->store_result();
-
-    if ($stmt->num_rows === 0) {
-        $_SESSION['reset_error'] = "Invalid or expired reset link.";
+    if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+        $_SESSION['reset_error'] = "Invalid email address.";
         header("Location: forgot_password.php");
         exit();
     }
 
-    $stmt->bind_result($email);
-    $stmt->fetch();
-    $stmt->close();
-
-    // Hash the new password
-    $hashed_password = password_hash($new_password, PASSWORD_DEFAULT);
-
-    // Update password in users table
-    $stmt = $conn->prepare("UPDATE users SET password = ? WHERE email = ?");
-    $stmt->bind_param("ss", $hashed_password, $email);
+    // Check if email exists in users table
+    $stmt = $conn->prepare("SELECT id FROM users WHERE email = ?");
+    $stmt->bind_param("s", $email);
     $stmt->execute();
-    $stmt->close();
+    $stmt->store_result();
 
-    // Delete reset token after successful password change
+    if ($stmt->num_rows === 0) {
+        $_SESSION['reset_error'] = "Email not found.";
+        header("Location: forgot_password.php");
+        exit();
+    }
+
+    // Generate token
+    $token = bin2hex(random_bytes(32));
+
+    // Remove old token if any
     $stmt = $conn->prepare("DELETE FROM password_resets WHERE email = ?");
     $stmt->bind_param("s", $email);
     $stmt->execute();
-    $stmt->close();
 
-    $_SESSION['reset_msg'] = "Your password has been reset successfully. You can now login.";
-    header("Location: login.php");
-    exit();
-} else {
+    // Store new token with created_at only
+    $stmt = $conn->prepare("INSERT INTO password_resets (email, token, created_at) VALUES (?, ?, NOW())");
+    $stmt->bind_param("ss", $email, $token);
+    $stmt->execute();
+
+    // Send reset email
+    require 'send_reset_email.php';
+    sendResetEmail($email, $token);
+
+    $_SESSION['reset_msg'] = "Password reset link sent to your email.";
     header("Location: forgot_password.php");
     exit();
 }
 ?>
+
+<!-- HTML Form -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Forgot Password | Fintech Agriculture</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+</head>
+<body class="bg-light">
+
+<div class="container vh-100 d-flex justify-content-center align-items-center">
+    <div class="card shadow p-4" style="width: 400px;">
+        <h4 class="text-center mb-3">Forgot Password</h4>
+
+        <?php if (isset($_SESSION['reset_error'])): ?>
+            <div class="alert alert-danger"><?php echo $_SESSION['reset_error']; unset($_SESSION['reset_error']); ?></div>
+        <?php endif; ?>
+
+        <?php if (isset($_SESSION['reset_msg'])): ?>
+            <div class="alert alert-success"><?php echo $_SESSION['reset_msg']; unset($_SESSION['reset_msg']); ?></div>
+        <?php endif; ?>
+
+        <form action="forgot_password.php" method="POST">
+            <div class="mb-3">
+                <label for="email" class="form-label">Enter your email</label>
+                <input type="email" class="form-control" name="email" required>
+            </div>
+            <button type="submit" class="btn btn-primary w-100">Send Reset Link</button>
+        </form>
+
+        <p class="text-center mt-3">
+            <a href="login.php">Back to Login</a>
+        </p>
+    </div>
+</div>
+
+</body>
+</html>
