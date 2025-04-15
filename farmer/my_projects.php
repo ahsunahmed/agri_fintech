@@ -1,3 +1,26 @@
+<?php
+session_start();
+include "../db.php";
+
+if (!isset($_SESSION['id'])) {
+    header("Location: /auth/login.php");
+    exit;
+}
+
+$farmer_id = $_SESSION['id']; 
+
+
+$db_connection = databaseconnect();
+$sql = "SELECT id, title, target_amount, raised_amount, status FROM projects WHERE farmer_id = ?";
+$statement = $db_connection->prepare($sql);
+$statement->bind_param("i", $farmer_id);
+$statement->execute();
+$result = $statement->get_result(); 
+
+$statement->close();
+$db_connection->close();
+?>
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -80,7 +103,7 @@
             <ul class="nav flex-column">
                 <li class="nav-item"><a class="nav-link" href="dashboard.php"><i class="fas fa-tachometer-alt me-2"></i> Dashboard</a></li>
                 <li class="nav-item"><a class="nav-link" href="create_project.php"><i class="fas fa-plus-circle me-2"></i> Create Project</a></li>
-                <li class="nav-item"><a class="nav-link active" href="my_project.php"><i class="fas fa-folder-open me-2"></i> My Projects</a></li>
+                <li class="nav-item"><a class="nav-link active" href="my_projects.php"><i class="fas fa-folder-open me-2"></i> My Projects</a></li>
                 <li class="nav-item"><a class="nav-link" href="payments.php"><i class="fas fa-wallet me-2"></i> Payments</a></li>
             </ul>
         </div>
@@ -103,21 +126,25 @@
                     </tr>
                 </thead>
                 <tbody>
-                    <tr>
-                        <td>1</td>
-                        <td>Organic Farming</td>
-                        <td>20,000</td>
-                        <td><span class="badge bg-success">Active</span></td>
-                        <td>
-                            <button class="btn btn-sm btn-info" data-bs-toggle="modal" data-bs-target="#viewModal"><i class="fas fa-eye"></i></button>
-                            <button class="btn btn-sm btn-warning" data-bs-toggle="modal" data-bs-target="#editModal"><i class="fas fa-edit"></i></button>
-                            <button class="btn btn-sm btn-danger" data-bs-toggle="modal" data-bs-target="#deleteModal"><i class="fas fa-trash"></i></button>
-                        </td>
-                    </tr>
+                    <?php while ($project = $result->fetch_assoc()) { ?>
+                        <tr>
+                            <td><?= $project['id'] ?></td>
+                            <td><?= $project['title'] ?></td>
+                            <td><?= number_format($project['target_amount'], 2) ?></td>
+                            <td><span class="badge bg-<?= ($project['status'] == 'approved') ? 'success' : 'warning' ?>"><?= ucfirst($project['status']) ?></span></td>
+                            <td>
+                                <button class="btn btn-sm btn-info" data-bs-toggle="modal" data-bs-target="#viewModal"><i class="fas fa-eye"></i></button>
+                                <button class="btn btn-sm btn-warning" data-bs-toggle="modal" data-bs-target="#editModal"><i class="fas fa-edit"></i></button>
+                                <button class="btn btn-sm btn-danger" data-bs-toggle="modal" data-bs-target="#deleteModal"><i class="fas fa-trash"></i></button>
+                            </td>
+                        </tr>
+                    <?php } ?>
                 </tbody>
             </table>
         </div>
     </div>
+
+    <!-- Modal Templates for View, Edit, Delete -->
 
     <!-- View Modal -->
     <div class="modal fade" id="viewModal" tabindex="-1">
