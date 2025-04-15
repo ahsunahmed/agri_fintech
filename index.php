@@ -91,10 +91,10 @@
                 your fingertips
                 </p>
                 <div class="d-flex gap-3 mt-4">
-                <a href="register.php?type=farmer" class="btn btn-primary btn-lg"
+                <a href="auth/registration.php?role=farmer" class="btn btn-primary btn-lg"
                     >I'm a Farmer</a>
                 <a
-                    href="register.php?type=investor"
+                    href="auth/registration.php?role=investor"
                     class="btn btn-success btn-lg"
                     >I'm an Investor</a
                 >
