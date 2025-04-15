@@ -7,6 +7,10 @@ $name = $email = $role = $password = $confirm_pass = "";
 $email_error = $name_error = $role_error = $password_error = $confirm_pass_error = "";
 $error = false;
 
+if (isset($_GET['role']) && in_array($_GET['role'], ['farmer', 'investor'])) {
+    $role = $_GET['role'];
+}
+
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     $name = trim($_POST["fullname"]);
     $email = trim($_POST["email"]);
@@ -104,6 +108,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -111,75 +116,77 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
     <link rel="stylesheet" href="assets/css/style.css">
 </head>
+
 <body class="bg-light">
-<div class="container vh-100 d-flex justify-content-center align-items-center">
-    <div class="card shadow p-4" style="width: 450px;">
-        <h4 class="text-center mb-3">Create an Account</h4>
+    <div class="container vh-100 d-flex justify-content-center align-items-center">
+        <div class="card shadow p-4" style="width: 450px;">
+            <h4 class="text-center mb-3">Create an Account</h4>
 
-        <!-- Form Starts -->
-        <form id="signupForm" method="POST">
-            <div class="mb-3">
-                <label for="fullname" class="form-label">Full Name</label>
-                <input type="text" class="form-control" id="fullname" name="fullname" value="<?= htmlspecialchars($name) ?>" required>
-                <span class="text-danger"><?= $name_error ?></span>
-            </div>
+            <!-- Form Starts -->
+            <form id="signupForm" method="POST">
+                <div class="mb-3">
+                    <label for="fullname" class="form-label">Full Name</label>
+                    <input type="text" class="form-control" id="fullname" name="fullname" value="<?= htmlspecialchars($name) ?>" required>
+                    <span class="text-danger"><?= $name_error ?></span>
+                </div>
 
-            <div class="mb-3">
-                <label for="email" class="form-label">Email Address</label>
-                <input type="email" class="form-control" id="email" name="email" value="<?= htmlspecialchars($email) ?>" required>
-                <span class="text-danger"><?= $email_error ?></span>
-            </div>
+                <div class="mb-3">
+                    <label for="email" class="form-label">Email Address</label>
+                    <input type="email" class="form-control" id="email" name="email" value="<?= htmlspecialchars($email) ?>" required>
+                    <span class="text-danger"><?= $email_error ?></span>
+                </div>
 
-            <div class="mb-3">
-                <label for="user_role" class="form-label">Register As</label>
-                <select class="form-select" id="user_role" name="user_role" required>
-                    <option value="" disabled <?= empty($role) ? 'selected' : '' ?>>-- Select Role --</option>
-                    <option value="farmer" <?= ($role == 'farmer') ? 'selected' : '' ?>>Farmer</option>
-                    <option value="investor" <?= ($role == 'investor') ? 'selected' : '' ?>>Investor</option>
-                </select>
-                <span class="text-danger"><?= $role_error ?></span>
-            </div>
+                <div class="mb-3">
+                    <label for="user_role" class="form-label">Register As</label>
+                    <select class="form-select" id="user_role" name="user_role" required>
+                        <option value="" disabled <?= empty($role) ? 'selected' : '' ?>>-- Select Role --</option>
+                        <option value="farmer" <?= ($role == 'farmer') ? 'selected' : '' ?>>Farmer</option>
+                        <option value="investor" <?= ($role == 'investor') ? 'selected' : '' ?>>Investor</option>
+                    </select>
+                    <span class="text-danger"><?= $role_error ?></span>
+                </div>
 
-            <div class="mb-3">
-                <label for="password" class="form-label">Password</label>
-                <input type="password" class="form-control" id="password" name="password" required>
-                <span class="text-danger"><?= $password_error ?></span>
-            </div>
+                <div class="mb-3">
+                    <label for="password" class="form-label">Password</label>
+                    <input type="password" class="form-control" id="password" name="password" required>
+                    <span class="text-danger"><?= $password_error ?></span>
+                </div>
 
-            <div class="mb-3">
-                <label for="confirm_password" class="form-label">Confirm Password</label>
-                <input type="password" class="form-control" id="confirm_password" name="confirm_password" required>
-                <span class="text-danger"><?= $confirm_pass_error ?></span>
-            </div>
+                <div class="mb-3">
+                    <label for="confirm_password" class="form-label">Confirm Password</label>
+                    <input type="password" class="form-control" id="confirm_password" name="confirm_password" required>
+                    <span class="text-danger"><?= $confirm_pass_error ?></span>
+                </div>
 
-            <button type="submit" class="btn btn-primary w-100 mt-2">Sign Up</button>
-        </form>
+                <button type="submit" class="btn btn-primary w-100 mt-2">Sign Up</button>
+            </form>
 
-        <p class="text-center mt-3">
-            Already have an account? <a href="login.php">Login</a>
-        </p>
+            <p class="text-center mt-3">
+                Already have an account? <a href="login.php">Login</a>
+            </p>
+        </div>
     </div>
-</div>
 
-<script>
-document.getElementById("signupForm").addEventListener("submit", function(event) {
-    let fullname = document.getElementById("fullname").value.trim();
-    let email = document.getElementById("email").value.trim();
-    let userRole = document.getElementById("user_role").value;
-    let password = document.getElementById("password").value.trim();
-    let confirmPassword = document.getElementById("confirm_password").value.trim();
+    <script>
+        document.getElementById("signupForm").addEventListener("submit", function(event) {
+            let fullname = document.getElementById("fullname").value.trim();
+            let email = document.getElementById("email").value.trim();
+            let userRole = document.getElementById("user_role").value;
+            let password = document.getElementById("password").value.trim();
+            let confirmPassword = document.getElementById("confirm_password").value.trim();
 
-    if (!fullname || !email || !userRole || !password || !confirmPassword) {
-        event.preventDefault();
-        alert("All fields are required!");
-    } else if (password.length < 6) {
-        event.preventDefault();
-        alert("Password must be at least 6 characters!");
-    } else if (password !== confirmPassword) {
-        event.preventDefault();
-        alert("Passwords do not match!");
-    }
-});
-</script>
+            if (!fullname || !email || !userRole || !password || !confirmPassword) {
+                event.preventDefault();
+                alert("All fields are required!");
+            } else if (password.length < 6) {
+                event.preventDefault();
+                alert("Password must be at least 6 characters!");
+            } else if (password !== confirmPassword) {
+                event.preventDefault();
+                alert("Passwords do not match!");
+            }
+        });
+    </script>
 </body>
+
 </html>
