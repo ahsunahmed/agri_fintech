@@ -1,5 +1,17 @@
+<?php
+include "../db.php";
+$db_connection = databaseconnect();
+$sql_approved_projects = "SELECT p.id, p.title, p.category, p.target_amount, p.start_date, p.end_date, p.description FROM projects p WHERE p.status = 'approved'";
+$result_approved_projects = $db_connection->query($sql_approved_projects);
+if ($result_approved_projects === false) {
+    echo "Error: " . $db_connection->error;
+    exit;
+}
+?>
+
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -22,11 +34,14 @@
             padding-top: 20px;
             color: white;
         }
+
         .sidebar .nav-link {
             color: white;
             padding: 12px;
         }
-        .sidebar .nav-link:hover, .sidebar .nav-link.active {
+
+        .sidebar .nav-link:hover,
+        .sidebar .nav-link.active {
             background-color: rgba(255, 255, 255, 0.2);
         }
 
@@ -44,12 +59,14 @@
                 height: auto;
                 position: relative;
             }
+
             .main-content {
                 margin-left: 0;
             }
         }
     </style>
 </head>
+
 <body>
 
     <!-- Top Navbar -->
@@ -68,7 +85,9 @@
                         <ul class="dropdown-menu dropdown-menu-end">
                             <li><a class="dropdown-item" href="#"><i class="fas fa-user me-2"></i> Profile</a></li>
                             <li><a class="dropdown-item" href="#"><i class="fas fa-cog me-2"></i> Settings</a></li>
-                            <li><hr class="dropdown-divider"></li>
+                            <li>
+                                <hr class="dropdown-divider">
+                            </li>
                             <li><a class="dropdown-item text-danger" href="#"><i class="fas fa-sign-out-alt me-2"></i> Logout</a></li>
                         </ul>
                     </li>
@@ -98,57 +117,71 @@
 
             <!-- Projects List -->
             <div class="row">
-                <div class="col-md-6 mb-4">
-                    <div class="card">
-                        <div class="card-header bg-success text-white">Rice Farming Expansion</div>
-                        <div class="card-body">
-                            <p><strong>Category:</strong> Agriculture</p>
-                            <p><strong>Amount Needed:</strong> ৳100,000</p>
-                            <p><strong>Expected ROI:</strong> 12%</p>
-                            <p><strong>Duration:</strong> 6 Months</p>
-                            <button class="btn btn-info btn-sm" data-bs-toggle="modal" data-bs-target="#viewProjectModal">View Details</button>
-                            <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#investModal">Invest</button>
+                <?php
+                if ($result_approved_projects->num_rows > 0) {
+                    while ($project = $result_approved_projects->fetch_assoc()) {
+                        // Calculate the duration in months
+                        $start_date = new DateTime($project['start_date']);
+                        $end_date = new DateTime($project['end_date']);
+                        $duration = $start_date->diff($end_date)->format('%m months');
+                ?>
+                    <div class="col-md-6 mb-4">
+                        <div class="card">
+                            <div class="card-header bg-success text-white"><?= $project['title'] ?></div>
+                            <div class="card-body">
+                                <p><strong>Category:</strong> <?= $project['category'] ?></p>
+                                <p><strong>Amount Needed:</strong> ৳<?= number_format($project['target_amount'], 2) ?></p>
+                                <p><strong>Expected ROI:</strong> 15%</p>
+                                <p><strong>Duration:</strong> <?= $duration ?></p>
+                                <button class="btn btn-info btn-sm" data-bs-toggle="modal" data-bs-target="#viewProjectModal<?= $project['id'] ?>">View Details</button>
+                                <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#investModal">Invest</button>
+                            </div>
                         </div>
                     </div>
-                </div>
-                <div class="col-md-6 mb-4">
-                    <div class="card">
-                        <div class="card-header bg-success text-white">Organic Vegetable Farm</div>
-                        <div class="card-body">
-                            <p><strong>Category:</strong> Horticulture</p>
-                            <p><strong>Amount Needed:</strong> ৳50,000</p>
-                            <p><strong>Expected ROI:</strong> 10%</p>
-                            <p><strong>Duration:</strong> 4 Months</p>
-                            <button class="btn btn-info btn-sm" data-bs-toggle="modal" data-bs-target="#viewProjectModal">View Details</button>
-                            <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#investModal">Invest</button>
-                        </div>
-                    </div>
-                </div>
+                <?php
+                    }
+                } else {
+                    echo "<div class='col-12'><p>No approved projects available.</p></div>";
+                }
+                ?>
             </div>
 
             <!-- View Project Modal -->
-            <div class="modal fade" id="viewProjectModal" tabindex="-1">
-                <div class="modal-dialog">
-                    <div class="modal-content">
-                        <div class="modal-header bg-primary text-white">
-                            <h5 class="modal-title">Project Details</h5>
-                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                        </div>
-                        <div class="modal-body">
-                            <p><strong>Project Name:</strong> Rice Farming Expansion</p>
-                            <p><strong>Category:</strong> Agriculture</p>
-                            <p><strong>Amount Needed:</strong> ৳100,000</p>
-                            <p><strong>Expected ROI:</strong> 12%</p>
-                            <p><strong>Duration:</strong> 6 Months</p>
-                            <p><strong>Description:</strong> This project aims to expand rice farming in rural areas to increase production and profitability.</p>
-                        </div>
-                        <div class="modal-footer">
-                            <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#investModal">Invest Now</button>
-                            <button class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            <?php
+            // Display modals dynamically for each project
+            if ($result_approved_projects->num_rows > 0) {
+                $result_approved_projects->data_seek(0); // Reset pointer to the start
+                while ($project = $result_approved_projects->fetch_assoc()) {
+                    $start_date = new DateTime($project['start_date']);
+                    $end_date = new DateTime($project['end_date']);
+                    $duration = $start_date->diff($end_date)->format('%m months');
+            ?>
+                <div class="modal fade" id="viewProjectModal<?= $project['id'] ?>" tabindex="-1">
+                    <div class="modal-dialog">
+                        <div class="modal-content">
+                            <div class="modal-header bg-primary text-white">
+                                <h5 class="modal-title">Project Details</h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                            </div>
+                            <div class="modal-body">
+                                <p><strong>Project Name:</strong> <?= $project['title'] ?></p>
+                                <p><strong>Category:</strong> <?= $project['category'] ?></p>
+                                <p><strong>Amount Needed:</strong> ৳<?= number_format($project['target_amount'], 2) ?></p>
+                                <p><strong>Expected ROI:</strong> 15%</p>
+                                <p><strong>Duration:</strong> <?= $duration ?></p>
+                                <p><strong>Description:</strong> <?= $project['description'] ?></p>
+                            </div>
+                            <div class="modal-footer">
+                                <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#investModal">Invest Now</button>
+                                <button class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                            </div>
                         </div>
                     </div>
                 </div>
-            </div>
+            <?php
+                }
+            }
+            ?>
 
             <!-- Invest Modal -->
             <div class="modal fade" id="investModal" tabindex="-1">
@@ -177,5 +210,7 @@
 
     <!-- Bootstrap JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
 </body>
+
 </html>
