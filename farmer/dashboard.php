@@ -1,3 +1,47 @@
+<?php
+session_start();
+
+include('../db.php'); 
+
+if (!isset($_SESSION['id'])) {
+    header("Location: /auth/login.php");
+    exit();
+}
+
+$farmer_id = $_SESSION['id'];
+
+$db_connection = databaseconnect(); 
+
+$query = "SELECT * FROM projects WHERE farmer_id = ?";
+$statement = $db_connection->prepare($query);
+$statement->bind_param("i", $farmer_id);
+$statement->execute();
+$result = $statement->get_result();
+
+// Fetch total projects count for the specific farmer
+$totalProjectsQuery = "SELECT COUNT(*) as totalProjects FROM projects WHERE farmer_id = '$farmer_id'";
+$totalProjectsResult = mysqli_query($db_connection, $totalProjectsQuery);
+$totalProjectsData = mysqli_fetch_assoc($totalProjectsResult);
+$totalProjects = $totalProjectsData['totalProjects'];
+
+// Fetch active projects count for the specific farmer
+$activeProjectsQuery = "SELECT COUNT(*) as activeProjects FROM projects WHERE farmer_id = '$farmer_id' AND status = 'approved'";
+$activeProjectsResult = mysqli_query($db_connection, $activeProjectsQuery);
+$activeProjectsData = mysqli_fetch_assoc($activeProjectsResult);
+$activeProjects = $activeProjectsData['activeProjects'];
+
+// Fetch pending investments amount for the specific farmer
+$pendingInvestmentsQuery = "SELECT SUM(target_amount - raised_amount) as pendingInvestments FROM projects WHERE farmer_id = '$farmer_id' AND status = 'pending'";
+$pendingInvestmentsResult = mysqli_query($db_connection, $pendingInvestmentsQuery);
+$pendingInvestmentsData = mysqli_fetch_assoc($pendingInvestmentsResult);
+$pendingInvestments = $pendingInvestmentsData['pendingInvestments'];
+
+$totalEarnings = 1500000; // Nedd to Replace with actual earnings data query when available
+
+$statement->close();
+$db_connection->close();
+?>
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -43,7 +87,7 @@
                             <li><a class="dropdown-item" href="#"><i class="fas fa-user me-2"></i> Profile</a></li>
                             <li><a class="dropdown-item" href="#"><i class="fas fa-cog me-2"></i> Settings</a></li>
                             <li><hr class="dropdown-divider"></li>
-                            <li><a class="dropdown-item text-danger" href="#"><i class="fas fa-sign-out-alt me-2"></i> Logout</a></li>
+                            <li><a class="dropdown-item text-danger" href="logout.php"><i class="fas fa-sign-out-alt me-2"></i> Logout</a></li>
                         </ul>
                     </li>
                 </ul>
@@ -98,7 +142,7 @@
                             <div class="card-body d-flex justify-content-between">
                                 <div>
                                     <h6 class="text-uppercase">Total Projects</h6>
-                                    <h2>12</h2>
+                                    <h2><?php echo $totalProjects; ?></h2>
                                     <small class="text-white-50">+3 this month</small>
                                 </div>
                                 <i class="fas fa-folder-open fa-2x"></i>
@@ -111,7 +155,7 @@
                             <div class="card-body d-flex justify-content-between">
                                 <div>
                                     <h6 class="text-uppercase">Active Projects</h6>
-                                    <h2>8</h2>
+                                    <h2><?php echo $activeProjects; ?></h2>
                                     <small class="text-white-50">↑ 20% this month</small>
                                 </div>
                                 <i class="fas fa-play-circle fa-2x"></i>
@@ -124,7 +168,7 @@
                             <div class="card-body d-flex justify-content-between">
                                 <div>
                                     <h6 class="text-uppercase">Pending Investments</h6>
-                                    <h2>৳50,000</h2>
+                                    <h2>৳<?php echo number_format($pendingInvestments); ?></h2>
                                     <small class="text-white-50">Pending Approvals</small>
                                 </div>
                                 <i class="fas fa-hourglass-half fa-2x"></i>
@@ -137,7 +181,7 @@
                             <div class="card-body d-flex justify-content-between">
                                 <div>
                                     <h6 class="text-uppercase">Total Earnings</h6>
-                                    <h2>৳1.5M</h2>
+                                    <h2>৳<?php echo number_format($totalEarnings); ?></h2>
                                     <small class="text-white-50">+10% this month</small>
                                 </div>
                                 <i class="fas fa-hand-holding-usd fa-2x"></i>
@@ -161,21 +205,28 @@
                             </tr>
                         </thead>
                         <tbody>
-                            <tr>
-                                <td>Organic Farming</td>
-                                <td>৳20,000</td>
-                                <td><span class="badge bg-success">Active</span></td>
-                            </tr>
-                            <tr>
-                                <td>Greenhouse Vegetables</td>
-                                <td>৳15,000</td>
-                                <td><span class="badge bg-warning">Pending</span></td>
-                            </tr>
-                            <tr>
-                                <td>Fish Farming</td>
-                                <td>৳30,000</td>
-                                <td><span class="badge bg-info">New</span></td>
-                            </tr>
+                            <?php
+                            // Display the recent projects for the specific farmer
+                            while ($row = $result->fetch_assoc()) {
+                                echo '<tr>';
+                                echo '<td>' . htmlspecialchars($row['title']) . '</td>';
+                                echo '<td>৳' . number_format($row['target_amount']) . '</td>';
+                                echo '<td><span class="badge ' . getBadgeClass($row['status']) . '">' . ucfirst($row['status']) . '</span></td>';
+                                echo '</tr>';
+                            }
+
+                            // Helper function to set badge class based on project status
+                            function getBadgeClass($status) {
+                                if ($status == 'approved') {
+                                    return 'bg-success';
+                                } elseif ($status == 'pending') {
+                                    return 'bg-warning';
+                                } elseif ($status == 'new') {
+                                    return 'bg-info';
+                                }
+                                return 'bg-secondary';
+                            }
+                            ?>
                         </tbody>
                     </table>
                 </div>
