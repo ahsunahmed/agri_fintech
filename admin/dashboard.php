@@ -1,3 +1,45 @@
+<?php
+include "../db.php"; 
+$db_connection = databaseconnect();
+
+// Total Farmers
+$sql_farmers = "SELECT COUNT(*) AS total_farmers FROM users WHERE role = 'farmer'";
+$result_farmers = $db_connection->query($sql_farmers);
+$row_farmers = $result_farmers->fetch_assoc();
+$total_farmers = $row_farmers['total_farmers'];
+
+// Total Investors
+$sql_investors = "SELECT COUNT(*) AS total_investors FROM users WHERE role = 'investor'";
+$result_investors = $db_connection->query($sql_investors);
+$row_investors = $result_investors->fetch_assoc();
+$total_investors = $row_investors['total_investors'];
+
+// Active Projects
+$sql_projects = "SELECT COUNT(*) AS active_projects FROM projects WHERE status = 'approved'";
+$result_projects = $db_connection->query($sql_projects);
+$row_projects = $result_projects->fetch_assoc();
+$active_projects = $row_projects['active_projects'];
+
+// Total Investment
+$sql_investment = "SELECT SUM(target_amount) AS total_investment FROM projects WHERE status = 'approved'";
+$result_investment = $db_connection->query($sql_investment);
+$row_investment = $result_investment->fetch_assoc();
+$total_investment = $row_investment['total_investment'];
+
+// Fetch Recent Projects
+$sql_recent_projects = "SELECT p.title, u.full_name AS farmer, p.target_amount AS amount, p.status
+                        FROM projects p
+                        JOIN users u ON p.farmer_id = u.id
+                        ORDER BY p.start_date DESC LIMIT 3";
+$result_recent_projects = $db_connection->query($sql_recent_projects);
+
+// Fetch Recent Users
+$sql_recent_users = "SELECT full_name, role, created_at FROM users ORDER BY created_at DESC LIMIT 3";
+$result_recent_users = $db_connection->query($sql_recent_users);
+
+$db_connection->close();
+?>
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -63,24 +105,6 @@
                     Projects
                 </a>
             </li>
-            <!-- <li class="nav-item">
-                <a class="nav-link" href="investments.php">
-                    <i class="fas fa-money-bill-wave"></i>
-                    Investments
-                </a>
-            </li>
-            <li class="nav-item">
-                <a class="nav-link" href="reports.php">
-                    <i class="fas fa-chart-bar"></i>
-                    Reports
-                </a>
-            </li>
-            <li class="nav-item">
-                <a class="nav-link" href="settings.php">
-                    <i class="fas fa-cog"></i>
-                    Settings
-                </a>
-            </li> -->
         </ul>
     </div>
 
@@ -103,7 +127,7 @@
                         <div class="d-flex justify-content-between align-items-center">
                             <div>
                                 <h6 class="text-uppercase mb-2">Total Farmers</h6>
-                                <h2 class="mb-0">156</h2>
+                                <h2 class="mb-0"><?= $total_farmers ?></h2>
                                 <small class="text-white-50">↑ 12% this month</small>
                             </div>
                             <div class="icon-circle">
@@ -121,7 +145,7 @@
                         <div class="d-flex justify-content-between align-items-center">
                             <div>
                                 <h6 class="text-uppercase mb-2">Total Investors</h6>
-                                <h2 class="mb-0">48</h2>
+                                <h2 class="mb-0"><?= $total_investors ?></h2>
                                 <small class="text-white-50">↑ 8% this month</small>
                             </div>
                             <div class="icon-circle">
@@ -139,7 +163,7 @@
                         <div class="d-flex justify-content-between align-items-center">
                             <div>
                                 <h6 class="text-uppercase mb-2">Active Projects</h6>
-                                <h2 class="mb-0">32</h2>
+                                <h2 class="mb-0"><?= $active_projects ?></h2>
                                 <small class="text-white-50">↑ 15% this month</small>
                             </div>
                             <div class="icon-circle">
@@ -157,7 +181,7 @@
                         <div class="d-flex justify-content-between align-items-center">
                             <div>
                                 <h6 class="text-uppercase mb-2">Total Investment</h6>
-                                <h2 class="mb-0">৳15M</h2>
+                                <h2 class="mb-0">৳<?= number_format($total_investment, 2) ?></h2>
                                 <small class="text-white-50">↑ 20% this month</small>
                             </div>
                             <div class="icon-circle">
@@ -188,24 +212,14 @@
                             </tr>
                         </thead>
                         <tbody>
-                            <tr>
-                                <td>Rice Cultivation</td>
-                                <td>Kamal Hassan</td>
-                                <td>৳50,000</td>
-                                <td><span class="badge bg-success">Active</span></td>
-                            </tr>
-                            <tr>
-                                <td>Fish Farm</td>
-                                <td>Abdul Rahman</td>
-                                <td>৳75,000</td>
-                                <td><span class="badge bg-warning">Pending</span></td>
-                            </tr>
-                            <tr>
-                                <td>Vegetable Garden</td>
-                                <td>Shahid Ahmed</td>
-                                <td>৳30,000</td>
-                                <td><span class="badge bg-info">New</span></td>
-                            </tr>
+                            <?php while ($project = $result_recent_projects->fetch_assoc()) { ?>
+                                <tr>
+                                    <td><?= $project['title'] ?></td>
+                                    <td><?= $project['farmer'] ?></td>
+                                    <td>৳<?= number_format($project['amount'], 2) ?></td>
+                                    <td><span class="badge bg-<?= strtolower($project['status']) ?>"><?= ucfirst($project['status']) ?></span></td>
+                                </tr>
+                            <?php } ?>
                         </tbody>
                     </table>
                 </div>
@@ -228,24 +242,14 @@
                             </tr>
                         </thead>
                         <tbody>
-                            <tr>
-                                <td>Rahim Khan</td>
-                                <td>Farmer</td>
-                                <td>2023-10-15</td>
-                                <td><span class="badge bg-success">Active</span></td>
-                            </tr>
-                            <tr>
-                                <td>Sarah Ahmed</td>
-                                <td>Investor</td>
-                                <td>2023-10-14</td>
-                                <td><span class="badge bg-success">Active</span></td>
-                            </tr>
-                            <tr>
-                                <td>Mohammad Ali</td>
-                                <td>Farmer</td>
-                                <td>2023-10-13</td>
-                                <td><span class="badge bg-warning">Pending</span></td>
-                            </tr>
+                            <?php while ($user = $result_recent_users->fetch_assoc()) { ?>
+                                <tr>
+                                    <td><?= $user['full_name'] ?></td>
+                                    <td><?= ucfirst($user['role']) ?></td>
+                                    <td><?= $user['created_at'] ?></td>
+                                    <td><span class="badge bg-<?= strtolower($user['role']) ?>"><?= ucfirst($user['role']) ?></span></td>
+                                </tr>
+                            <?php } ?>
                         </tbody>
                     </table>
                 </div>
@@ -255,10 +259,5 @@
 
     <!-- Bootstrap JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    <!-- Chart.js -->
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <!-- Custom JS -->
-    <script src="../assets/js/main.js"></script>
-    <script src="../assets/js/validation.js"></script>
 </body>
 </html>
