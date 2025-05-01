@@ -1,3 +1,22 @@
+<?php
+session_start();
+include "../db.php";
+
+$db_connection = databaseconnect();
+
+$investor_id = $_SESSION['id'];
+$sql_investments = "SELECT i.id, p.title AS project_name, i.amount, p.roi, p.status 
+                    FROM investments i
+                    JOIN projects p ON i.project_id = p.id
+                    WHERE i.investor_id = ?";
+$stmt_investments = $db_connection->prepare($sql_investments);
+$stmt_investments->bind_param("i", $investor_id);
+$stmt_investments->execute();
+$result_investments = $stmt_investments->get_result();
+
+$db_connection->close();
+?>
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -56,24 +75,6 @@
     <nav class="navbar navbar-expand-lg navbar-dark bg-primary fixed-top">
         <div class="container-fluid">
             <a class="navbar-brand" href="#"><i class="fas fa-chart-line me-2"></i> AgriFinConnect Investor</a>
-            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
-                <span class="navbar-toggler-icon"></span>
-            </button>
-            <div class="collapse navbar-collapse" id="navbarNav">
-                <ul class="navbar-nav ms-auto">
-                    <li class="nav-item dropdown">
-                        <a class="nav-link dropdown-toggle text-light" href="#" role="button" data-bs-toggle="dropdown">
-                            <i class="fas fa-user-circle me-1"></i> Investor
-                        </a>
-                        <ul class="dropdown-menu dropdown-menu-end">
-                            <li><a class="dropdown-item" href="#"><i class="fas fa-user me-2"></i> Profile</a></li>
-                            <li><a class="dropdown-item" href="#"><i class="fas fa-cog me-2"></i> Settings</a></li>
-                            <li><hr class="dropdown-divider"></li>
-                            <li><a class="dropdown-item text-danger" href="#"><i class="fas fa-sign-out-alt me-2"></i> Logout</a></li>
-                        </ul>
-                    </li>
-                </ul>
-            </div>
         </div>
     </nav>
 
@@ -83,7 +84,6 @@
             <li class="nav-item"><a class="nav-link" href="dashboard.php"><i class="fas fa-home me-2"></i> Dashboard</a></li>
             <li class="nav-item"><a class="nav-link active" href="my_investments.php"><i class="fas fa-money-bill-wave me-2"></i> My Investments</a></li>
             <li class="nav-item"><a class="nav-link" href="browse_projects.php"><i class="fas fa-seedling me-2"></i> Available Projects</a></li>
-            <li class="nav-item"><a class="nav-link" href="transactions.php"><i class="fas fa-receipt me-2"></i> Transactions</a></li>
         </ul>
     </div>
 
@@ -93,7 +93,6 @@
             <!-- Page Header -->
             <div class="d-flex justify-content-between align-items-center mb-4">
                 <h3 class="text-primary">My Investments</h3>
-                <button class="btn btn-primary"><i class="fas fa-plus me-2"></i> Add Investment</button>
             </div>
 
             <!-- Investment Table -->
@@ -111,68 +110,49 @@
                             </tr>
                         </thead>
                         <tbody>
-                            <tr>
-                                <td>Organic Farming</td>
-                                <td>৳50,000</td>
-                                <td>8%</td>
-                                <td><span class="badge bg-success">Active</span></td>
-                                <td>
-                                    <button class="btn btn-sm btn-info" data-bs-toggle="modal" data-bs-target="#viewInvestmentModal"><i class="fas fa-eye"></i></button>
-                                    <button class="btn btn-sm btn-danger" data-bs-toggle="modal" data-bs-target="#deleteInvestmentModal"><i class="fas fa-trash"></i></button>
-                                </td>
-                            </tr>
-                            <tr>
-                                <td>Fishery Expansion</td>
-                                <td>৳75,000</td>
-                                <td>10%</td>
-                                <td><span class="badge bg-warning">Pending</span></td>
-                                <td>
-                                    <button class="btn btn-sm btn-info" data-bs-toggle="modal" data-bs-target="#viewInvestmentModal"><i class="fas fa-eye"></i></button>
-                                    <button class="btn btn-sm btn-danger" data-bs-toggle="modal" data-bs-target="#deleteInvestmentModal"><i class="fas fa-trash"></i></button>
-                                </td>
-                            </tr>
+                            <?php
+                            if ($result_investments->num_rows > 0) {
+                                while ($investment = $result_investments->fetch_assoc()) {
+                            ?>
+                                <tr>
+                                    <td><?= $investment['project_name'] ?></td>
+                                    <td>৳<?= number_format($investment['amount'], 2) ?></td>
+                                    <td><?= $investment['roi'] ?>%</td>
+                                    <td><span class="badge bg-<?= $investment['status'] == 'approved' ? 'success' : 'warning' ?>"><?= ucfirst($investment['status']) ?></span></td>
+                                    <td>
+                                        <button class="btn btn-sm btn-info" data-bs-toggle="modal" data-bs-target="#viewInvestmentModal<?= $investment['id'] ?>"><i class="fas fa-eye"></i></button>
+                                
+                                    </td>
+                                </tr>
+
+                                <!-- View Investment Modal -->
+                                <div class="modal fade" id="viewInvestmentModal<?= $investment['id'] ?>" tabindex="-1" aria-labelledby="viewInvestmentModalLabel" aria-hidden="true">
+                                    <div class="modal-dialog">
+                                        <div class="modal-content">
+                                            <div class="modal-header bg-primary text-white">
+                                                <h5 class="modal-title" id="viewInvestmentModalLabel">Investment Details</h5>
+                                                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                            </div>
+                                            <div class="modal-body">
+                                                <p><strong>Project:</strong> <?= $investment['project_name'] ?></p>
+                                                <p><strong>Amount Invested:</strong> ৳<?= number_format($investment['amount'], 2) ?></p>
+                                                <p><strong>ROI:</strong> <?= $investment['roi'] ?>%</p>
+                                                <p><strong>Status:</strong> <?= ucfirst($investment['status']) ?></p>
+                                            </div>
+                                            <div class="modal-footer">
+                                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            <?php 
+                                }
+                            } else {
+                                echo "<tr><td colspan='5' class='text-center'>No investments found</td></tr>";
+                            }
+                            ?>
                         </tbody>
                     </table>
-                </div>
-            </div>
-
-            <!-- View Investment Modal -->
-            <div class="modal fade" id="viewInvestmentModal" tabindex="-1" aria-labelledby="viewInvestmentModalLabel" aria-hidden="true">
-                <div class="modal-dialog">
-                    <div class="modal-content">
-                        <div class="modal-header bg-primary text-white">
-                            <h5 class="modal-title" id="viewInvestmentModalLabel">Investment Details</h5>
-                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                        </div>
-                        <div class="modal-body">
-                            <p><strong>Project:</strong> Organic Farming</p>
-                            <p><strong>Amount Invested:</strong> ৳50,000</p>
-                            <p><strong>ROI:</strong> 8%</p>
-                            <p><strong>Status:</strong> Active</p>
-                        </div>
-                        <div class="modal-footer">
-                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Delete Investment Modal -->
-            <div class="modal fade" id="deleteInvestmentModal" tabindex="-1" aria-labelledby="deleteInvestmentModalLabel" aria-hidden="true">
-                <div class="modal-dialog">
-                    <div class="modal-content">
-                        <div class="modal-header bg-danger text-white">
-                            <h5 class="modal-title" id="deleteInvestmentModalLabel">Delete Investment</h5>
-                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                        </div>
-                        <div class="modal-body">
-                            Are you sure you want to delete this investment?
-                        </div>
-                        <div class="modal-footer">
-                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                            <button type="button" class="btn btn-danger">Delete</button>
-                        </div>
-                    </div>
                 </div>
             </div>
 
@@ -181,5 +161,6 @@
 
     <!-- Bootstrap JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
 </body>
 </html>
