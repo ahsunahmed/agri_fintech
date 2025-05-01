@@ -25,7 +25,7 @@ function sendResetEmail($email, $token) {
         // Content
         $mail->isHTML(true);
         $mail->Subject = 'Reset Your Password';
-        $resetLink = "http://localhost/agri_fintech-main/auth/reset_password.php?token=" . urlencode($token);
+        $resetLink = "http://localhost/agri_fintech/auth/reset_password.php?token=" . urlencode($token);
         $mail->Body    = "Click the link below to reset your password:<br><a href='$resetLink'>$resetLink</a>";
 
         $mail->send();
