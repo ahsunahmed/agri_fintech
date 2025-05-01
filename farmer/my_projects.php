@@ -3,7 +3,7 @@ session_start();
 include "../db.php";
 
 if (!isset($_SESSION['id'])) {
-    header("Location: /auth/login.php");
+    header("Location: ../auth/login.php");
     exit;
 }
 
@@ -76,24 +76,16 @@ $db_connection->close();
     <nav class="navbar navbar-expand-lg navbar-dark bg-success fixed-top">
         <div class="container-fluid">
             <a class="navbar-brand" href="#"><i class="fas fa-seedling me-2"></i> AgriFinConnect Farmer</a>
-            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+            <!-- <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
                 <span class="navbar-toggler-icon"></span>
-            </button>
-            <div class="collapse navbar-collapse" id="navbarNav">
+            </button> -->
+            <!-- <div class="collapse navbar-collapse" id="navbarNav">
                 <ul class="navbar-nav ms-auto">
-                    <li class="nav-item dropdown">
-                        <a class="nav-link dropdown-toggle text-light" href="#" role="button" data-bs-toggle="dropdown">
-                            <i class="fas fa-user-circle me-1"></i> Farmer
-                        </a>
-                        <ul class="dropdown-menu dropdown-menu-end">
-                            <li><a class="dropdown-item" href="#"><i class="fas fa-user me-2"></i> Profile</a></li>
-                            <li><a class="dropdown-item" href="#"><i class="fas fa-cog me-2"></i> Settings</a></li>
-                            <li><hr class="dropdown-divider"></li>
-                            <li><a class="dropdown-item text-danger" href="#"><i class="fas fa-sign-out-alt me-2"></i> Logout</a></li>
-                        </ul>
-                    </li>
+                    <li><a class="text-light btn btn-secondary me-2" href="../payment/add_money.php">Add Money</a></li>
+                    <li><a class="text-light btn btn-success me-2" href="../payment/withdraw_money.php">Withdraw Money</a></li>
+                    <li><a class="text-light btn btn-danger me-2" href="../auth/logout.php"><i class="fas fa-sign-out-alt me-2"></i>Logout</a></li>
                 </ul>
-            </div>
+            </div> -->
         </div>
     </nav>
 
@@ -122,7 +114,7 @@ $db_connection->close();
                         <th>Project Name</th>
                         <th>Investment (৳)</th>
                         <th>Status</th>
-                        <th>Actions</th>
+                        <!-- <th>Actions</th> -->
                     </tr>
                 </thead>
                 <tbody>
@@ -132,11 +124,11 @@ $db_connection->close();
                             <td><?= $project['title'] ?></td>
                             <td><?= number_format($project['target_amount'], 2) ?></td>
                             <td><span class="badge bg-<?= ($project['status'] == 'approved') ? 'success' : 'warning' ?>"><?= ucfirst($project['status']) ?></span></td>
-                            <td>
-                                <button class="btn btn-sm btn-info" data-bs-toggle="modal" data-bs-target="#viewModal"><i class="fas fa-eye"></i></button>
-                                <button class="btn btn-sm btn-warning" data-bs-toggle="modal" data-bs-target="#editModal"><i class="fas fa-edit"></i></button>
-                                <button class="btn btn-sm btn-danger" data-bs-toggle="modal" data-bs-target="#deleteModal"><i class="fas fa-trash"></i></button>
-                            </td>
+                            <!-- <td> -->
+                                <!-- <button class="btn btn-sm btn-info" data-bs-toggle="modal" data-bs-target="#viewModal"><i class="fas fa-eye"></i></button> -->
+                                <!-- <button class="btn btn-sm btn-warning" data-bs-toggle="modal" data-bs-target="#editModal"><i class="fas fa-edit"></i></button> -->
+                                <!-- <button class="btn btn-sm btn-danger" data-bs-toggle="modal" data-bs-target="#deleteModal"><i class="fas fa-trash"></i></button> -->
+                            <!-- </td> -->
                         </tr>
                     <?php } ?>
                 </tbody>
