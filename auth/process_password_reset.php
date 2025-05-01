@@ -3,84 +3,80 @@ session_start();
 require_once 'config.php'; // DB connection
 
 if ($_SERVER["REQUEST_METHOD"] === "POST") {
-    $email = trim($_POST['email']);
-
-    if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
-        $_SESSION['reset_error'] = "Invalid email address.";
+    // Validate the token
+    if (!isset($_POST['token']) || empty($_POST['token'])) {
+        $_SESSION['reset_error'] = "Invalid or expired reset link.";
         header("Location: forgot_password.php");
         exit();
     }
 
-    // Check if email exists in users table
-    $stmt = $conn->prepare("SELECT id FROM users WHERE email = ?");
-    $stmt->bind_param("s", $email);
+    $token = htmlspecialchars($_POST['token']);
+
+    // Validate token and expiry (within 30 minutes)
+    $stmt = $conn->prepare("SELECT email, created_at FROM password_resets WHERE token = ?");
+    $stmt->bind_param("s", $token);
     $stmt->execute();
     $stmt->store_result();
 
     if ($stmt->num_rows === 0) {
-        $_SESSION['reset_error'] = "Email not found.";
+        $_SESSION['reset_error'] = "Invalid or expired reset link.";
         header("Location: forgot_password.php");
         exit();
     }
 
-    // Generate token
-    $token = bin2hex(random_bytes(32));
+    $stmt->bind_result($email, $created_at);
+    $stmt->fetch();
+    $stmt->close();
 
-    // Remove old token if any
-    $stmt = $conn->prepare("DELETE FROM password_resets WHERE email = ?");
-    $stmt->bind_param("s", $email);
+    // Check if token expired (older than 30 minutes)
+    $created_time = strtotime($created_at);
+    $current_time = time();
+    $diff_minutes = ($current_time - $created_time) / 60;
+
+    if ($diff_minutes > 30) {
+        $_SESSION['reset_error'] = "Reset link has expired. Please request a new one.";
+        // Optionally delete old token
+        $stmt = $conn->prepare("DELETE FROM password_resets WHERE token = ?");
+        $stmt->bind_param("s", $token);
+        $stmt->execute();
+        $stmt->close();
+
+        header("Location: forgot_password.php");
+        exit();
+    }
+
+    // Get the new password
+    $password = trim($_POST['password']);
+    $confirmPassword = trim($_POST['confirm_password']);
+
+    // Validate passwords
+    if (strlen($password) < 6) {
+        $_SESSION['reset_error'] = "Password must be at least 6 characters.";
+        header("Location: reset_password.php?token=" . urlencode($token));
+        exit();
+    } elseif ($password !== $confirmPassword) {
+        $_SESSION['reset_error'] = "Passwords do not match.";
+        header("Location: reset_password.php?token=" . urlencode($token));
+        exit();
+    }
+
+    // Hash the new password
+    $hashedPassword = password_hash($password, PASSWORD_DEFAULT);
+
+    // Update password in the database
+    $stmt = $conn->prepare("UPDATE users SET password = ? WHERE email = ?");
+    $stmt->bind_param("ss", $hashedPassword, $email);
     $stmt->execute();
+    $stmt->close();
 
-    // Store new token with created_at only
-    $stmt = $conn->prepare("INSERT INTO password_resets (email, token, created_at) VALUES (?, ?, NOW())");
-    $stmt->bind_param("ss", $email, $token);
+    // Delete the reset token after successful password change
+    $stmt = $conn->prepare("DELETE FROM password_resets WHERE token = ?");
+    $stmt->bind_param("s", $token);
     $stmt->execute();
+    $stmt->close();
 
-    // Send reset email
-    require 'send_reset_email.php';
-    sendResetEmail($email, $token);
-
-    $_SESSION['reset_msg'] = "Password reset link sent to your email.";
-    header("Location: forgot_password.php");
+    $_SESSION['reset_msg'] = "Your password has been reset successfully.";
+    header("Location: login.php");
     exit();
 }
 ?>
-
-<!-- HTML Form -->
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <title>Forgot Password | Fintech Agriculture</title>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
-</head>
-<body class="bg-light">
-
-<div class="container vh-100 d-flex justify-content-center align-items-center">
-    <div class="card shadow p-4" style="width: 400px;">
-        <h4 class="text-center mb-3">Forgot Password</h4>
-
-        <?php if (isset($_SESSION['reset_error'])): ?>
-            <div class="alert alert-danger"><?php echo $_SESSION['reset_error']; unset($_SESSION['reset_error']); ?></div>
-        <?php endif; ?>
-
-        <?php if (isset($_SESSION['reset_msg'])): ?>
-            <div class="alert alert-success"><?php echo $_SESSION['reset_msg']; unset($_SESSION['reset_msg']); ?></div>
-        <?php endif; ?>
-
-        <form action="forgot_password.php" method="POST">
-            <div class="mb-3">
-                <label for="email" class="form-label">Enter your email</label>
-                <input type="email" class="form-control" name="email" required>
-            </div>
-            <button type="submit" class="btn btn-primary w-100">Send Reset Link</button>
-        </form>
-
-        <p class="text-center mt-3">
-            <a href="login.php">Back to Login</a>
-        </p>
-    </div>
-</div>
-
-</body>
-</html>
