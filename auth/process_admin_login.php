@@ -1,6 +1,6 @@
 <?php
 session_start();
-require_once '../config.php'; // Database connection
+require_once 'config.php'; // Database connection
 
 // Check if form is submitted
 if ($_SERVER["REQUEST_METHOD"] === "POST") {
@@ -21,12 +21,10 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
     $stmt->store_result();
 
     if ($stmt->num_rows === 1) {
-        $stmt->bind_result($admin_id, $admin_username, $hashed_password);
+        $stmt->bind_result($admin_id, $admin_username, $stored_password);
         $stmt->fetch();
 
-        // Verify password
-        if (password_verify($password, $hashed_password)) {
-            // Regenerate session ID to prevent session fixation attacks
+        if ($password === $stored_password) {
             session_regenerate_id(true);
             
             // Store session variables
@@ -34,7 +32,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
             $_SESSION['admin_username'] = $admin_username;
 
             // Redirect to admin dashboard
-            header("Location: admin_dashboard.php");
+            header("Location: ../admin/dashboard.php");
             exit();
         } else {
             $_SESSION['admin_login_error'] = "Invalid username or password.";
@@ -53,4 +51,3 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
     header("Location: admin_login.php");
     exit();
 }
-?>
