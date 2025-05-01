@@ -1,12 +1,95 @@
 <?php
+session_start();
 include "../db.php";
-$db_connection = databaseconnect();
-$sql_approved_projects = "SELECT p.id, p.title, p.category, p.target_amount, p.start_date, p.end_date, p.description FROM projects p WHERE p.status = 'approved'";
-$result_approved_projects = $db_connection->query($sql_approved_projects);
-if ($result_approved_projects === false) {
-    echo "Error: " . $db_connection->error;
-    exit;
+
+if (!isset($_SESSION['id'])) {
+    header("Location: ../auth/login.php");
+    exit();
 }
+
+$db_connection = databaseconnect();
+
+$sql_approved_projects = "SELECT p.id, p.title, p.category, p.target_amount, p.start_date, p.end_date, p.description, p.farmer_id, p.roi FROM projects p WHERE p.status = 'approved'";
+$result_approved_projects = $db_connection->query($sql_approved_projects);
+
+if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['invest_amount']) && isset($_POST['project_id'])) {
+    $project_id = $_POST['project_id'];
+    $invest_amount = $_POST['invest_amount'];
+
+    $investor_id = $_SESSION['id'];
+
+    // Fetch the investor's balance
+    $sql_investor_balance = "SELECT balance FROM users WHERE id = ?";
+    $stmt_balance = $db_connection->prepare($sql_investor_balance);
+    $stmt_balance->bind_param("i", $investor_id);
+    $stmt_balance->execute();
+    $result_balance = $stmt_balance->get_result();
+    $investor = $result_balance->fetch_assoc();
+    $investor_balance = $investor['balance'];
+
+    // Fetch the project details
+    $sql_project = "SELECT * FROM projects WHERE id = ?";
+    $stmt_project = $db_connection->prepare($sql_project);
+    $stmt_project->bind_param("i", $project_id);
+    $stmt_project->execute();
+    $result_project = $stmt_project->get_result();
+    $project = $result_project->fetch_assoc();
+
+    if ($investor_balance >= $invest_amount) {
+        // If the investor has enough balance, proceed with the investment
+
+        // Reduce balance from investor
+        $new_investor_balance = $investor_balance - $invest_amount;
+        $update_investor_balance = "UPDATE users SET balance = ? WHERE id = ?";
+        $stmt_update_investor = $db_connection->prepare($update_investor_balance);
+        $stmt_update_investor->bind_param("di", $new_investor_balance, $investor_id);
+        $stmt_update_investor->execute();
+
+        // Add the investment to the project creator's balance
+        $project_creator_id = $project['farmer_id'];
+        $sql_farmer_balance = "SELECT balance FROM users WHERE id = ?";
+        $stmt_farmer_balance = $db_connection->prepare($sql_farmer_balance);
+        $stmt_farmer_balance->bind_param("i", $project_creator_id);
+        $stmt_farmer_balance->execute();
+        $result_farmer_balance = $stmt_farmer_balance->get_result();
+        $farmer = $result_farmer_balance->fetch_assoc();
+        $farmer_balance = $farmer['balance'];
+        $new_farmer_balance = $farmer_balance + $invest_amount;
+
+        // Update the project creator's balance
+        $update_farmer_balance = "UPDATE users SET balance = ? WHERE id = ?";
+        $stmt_update_farmer = $db_connection->prepare($update_farmer_balance);
+        $stmt_update_farmer->bind_param("di", $new_farmer_balance, $project_creator_id);
+        $stmt_update_farmer->execute();
+
+        // Add the investment record to the investments table
+        $sql_investment = "INSERT INTO investments (investor_id, project_id, amount, investment_date, status) VALUES (?, ?, ?, NOW(), 'pending')";
+        $stmt_investment = $db_connection->prepare($sql_investment);
+        $stmt_investment->bind_param("iid", $investor_id, $project_id, $invest_amount);
+        $stmt_investment->execute();
+
+        // Update project status to closed
+        $update_project_status = "UPDATE projects SET status = 'closed' WHERE id = ?";
+        $stmt_update_project = $db_connection->prepare($update_project_status);
+        $stmt_update_project->bind_param("i", $project_id);
+        $stmt_update_project->execute();
+
+        // Close the database connections
+        $stmt_update_investor->close();
+        $stmt_update_farmer->close();
+        $stmt_investment->close();
+        $stmt_update_project->close();
+
+        // Redirect after success
+        header("Location: browse_projects.php?success=true");
+        exit();
+    } else {
+        // Insufficient balance
+        $error = "Insufficient balance to make the investment.";
+    }
+}
+
+$db_connection->close();
 ?>
 
 <!DOCTYPE html>
@@ -73,26 +156,6 @@ if ($result_approved_projects === false) {
     <nav class="navbar navbar-expand-lg navbar-dark bg-primary fixed-top">
         <div class="container-fluid">
             <a class="navbar-brand" href="#"><i class="fas fa-chart-line me-2"></i> AgriFinConnect Investor</a>
-            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
-                <span class="navbar-toggler-icon"></span>
-            </button>
-            <div class="collapse navbar-collapse" id="navbarNav">
-                <ul class="navbar-nav ms-auto">
-                    <li class="nav-item dropdown">
-                        <a class="nav-link dropdown-toggle text-light" href="#" role="button" data-bs-toggle="dropdown">
-                            <i class="fas fa-user-circle me-1"></i> Investor
-                        </a>
-                        <ul class="dropdown-menu dropdown-menu-end">
-                            <li><a class="dropdown-item" href="#"><i class="fas fa-user me-2"></i> Profile</a></li>
-                            <li><a class="dropdown-item" href="#"><i class="fas fa-cog me-2"></i> Settings</a></li>
-                            <li>
-                                <hr class="dropdown-divider">
-                            </li>
-                            <li><a class="dropdown-item text-danger" href="#"><i class="fas fa-sign-out-alt me-2"></i> Logout</a></li>
-                        </ul>
-                    </li>
-                </ul>
-            </div>
         </div>
     </nav>
 
@@ -102,7 +165,6 @@ if ($result_approved_projects === false) {
             <li class="nav-item"><a class="nav-link" href="dashboard.php"><i class="fas fa-home me-2"></i> Dashboard</a></li>
             <li class="nav-item"><a class="nav-link" href="my_investments.php"><i class="fas fa-money-bill-wave me-2"></i> My Investments</a></li>
             <li class="nav-item"><a class="nav-link active" href="browse_projects.php"><i class="fas fa-seedling me-2"></i> Browse Projects</a></li>
-            <li class="nav-item"><a class="nav-link" href="transactions.php"><i class="fas fa-receipt me-2"></i> Transactions</a></li>
         </ul>
     </div>
 
@@ -125,19 +187,74 @@ if ($result_approved_projects === false) {
                         $end_date = new DateTime($project['end_date']);
                         $duration = $start_date->diff($end_date)->format('%m months');
                 ?>
-                    <div class="col-md-6 mb-4">
-                        <div class="card">
-                            <div class="card-header bg-success text-white"><?= $project['title'] ?></div>
-                            <div class="card-body">
-                                <p><strong>Category:</strong> <?= $project['category'] ?></p>
-                                <p><strong>Amount Needed:</strong> ৳<?= number_format($project['target_amount'], 2) ?></p>
-                                <p><strong>Expected ROI:</strong> 15%</p>
-                                <p><strong>Duration:</strong> <?= $duration ?></p>
-                                <button class="btn btn-info btn-sm" data-bs-toggle="modal" data-bs-target="#viewProjectModal<?= $project['id'] ?>">View Details</button>
-                                <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#investModal">Invest</button>
+                        <div class="col-md-6 mb-4">
+                            <div class="card">
+                                <div class="card-header bg-success text-white"><?= $project['title'] ?></div>
+                                <div class="card-body">
+                                    <p><strong>Category:</strong> <?= $project['category'] ?></p>
+                                    <p><strong>Amount Needed:</strong> ৳<?= number_format($project['target_amount'], 2) ?></p>
+                                    <p><strong>Expected ROI:</strong> 15%</p>
+                                    <p><strong>Duration:</strong> <?= $duration ?></p>
+                                    <button class="btn btn-info btn-sm" data-bs-toggle="modal" data-bs-target="#viewProjectModal<?= $project['id'] ?>">View Details</button>
+                                    <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#investModal<?= $project['id'] ?>">Invest</button>
+                                </div>
                             </div>
                         </div>
-                    </div>
+
+                        <div class="modal fade" id="viewProjectModal<?= $project['id'] ?>" tabindex="-1" aria-labelledby="viewProjectModalLabel<?= $project['id'] ?>" aria-hidden="true">
+                            <div class="modal-dialog">
+                                <div class="modal-content">
+                                    <div class="modal-header bg-primary text-white">
+                                        <h5 class="modal-title" id="viewProjectModalLabel<?= $project['id'] ?>">Project Details</h5>
+                                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                    </div>
+                                    <div class="modal-body">
+                                        <p><strong>Project Name:</strong> <?= $project['title'] ?></p>
+                                        <p><strong>Category:</strong> <?= $project['category'] ?></p>
+                                        <p><strong>Amount Needed:</strong> ৳<?= number_format($project['target_amount'], 2) ?></p>
+                                        <p><strong>Expected ROI:</strong> 15%</p>
+                                        <p><strong>Duration:</strong> <?= $duration ?></p>
+                                        <p><strong>Description:</strong> <?= $project['description'] ?></p>
+                                    </div>
+                                    <div class="modal-footer">
+                                        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#investModal<?= $project['id'] ?>">Invest Now</button>
+                                        <button class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Invest Modal -->
+                        <div class="modal fade" id="investModal<?= $project['id'] ?>" tabindex="-1" aria-labelledby="investModalLabel<?= $project['id'] ?>" aria-hidden="true">
+                            <div class="modal-dialog">
+                                <div class="modal-content">
+                                    <div class="modal-header bg-success text-white">
+                                        <h5 class="modal-title" id="investModalLabel<?= $project['id'] ?>">Confirm Investment</h5>
+                                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                    </div>
+                                    <form action="browse_projects.php" method="POST">
+                                        <div class="modal-body">
+                                            <p><strong>Project:</strong> <?= $project['title'] ?></p>
+                                            <p><strong>Amount Needed:</strong> ৳<?= number_format($project['target_amount'], 2) ?></p>
+                                            <?php
+                                            if (isset($error)) {
+                                                echo "<p class='text-danger'>$error</p>";
+                                            }
+                                            ?>
+                                        </div>
+                                        <div class="modal-footer">
+                                            <?php if (isset($error)) { ?>
+                                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                                            <?php } else { ?>
+                                                <button type="submit" class="btn btn-success">Confirm Investment</button>
+                                            <?php } ?>
+                                        </div>
+                                        <input type="hidden" name="project_id" value="<?= $project['id'] ?>">
+                                        <input type="hidden" name="invest_amount" value="<?= $project['target_amount'] ?>">
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
                 <?php
                     }
                 } else {
@@ -146,71 +263,10 @@ if ($result_approved_projects === false) {
                 ?>
             </div>
 
-            <!-- View Project Modal -->
-            <?php
-            // Display modals dynamically for each project
-            if ($result_approved_projects->num_rows > 0) {
-                $result_approved_projects->data_seek(0); // Reset pointer to the start
-                while ($project = $result_approved_projects->fetch_assoc()) {
-                    $start_date = new DateTime($project['start_date']);
-                    $end_date = new DateTime($project['end_date']);
-                    $duration = $start_date->diff($end_date)->format('%m months');
-            ?>
-                <div class="modal fade" id="viewProjectModal<?= $project['id'] ?>" tabindex="-1">
-                    <div class="modal-dialog">
-                        <div class="modal-content">
-                            <div class="modal-header bg-primary text-white">
-                                <h5 class="modal-title">Project Details</h5>
-                                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                            </div>
-                            <div class="modal-body">
-                                <p><strong>Project Name:</strong> <?= $project['title'] ?></p>
-                                <p><strong>Category:</strong> <?= $project['category'] ?></p>
-                                <p><strong>Amount Needed:</strong> ৳<?= number_format($project['target_amount'], 2) ?></p>
-                                <p><strong>Expected ROI:</strong> 15%</p>
-                                <p><strong>Duration:</strong> <?= $duration ?></p>
-                                <p><strong>Description:</strong> <?= $project['description'] ?></p>
-                            </div>
-                            <div class="modal-footer">
-                                <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#investModal">Invest Now</button>
-                                <button class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            <?php
-                }
-            }
-            ?>
-
-            <!-- Invest Modal -->
-            <div class="modal fade" id="investModal" tabindex="-1">
-                <div class="modal-dialog">
-                    <div class="modal-content">
-                        <div class="modal-header bg-success text-white">
-                            <h5 class="modal-title">Invest in Project</h5>
-                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                        </div>
-                        <div class="modal-body">
-                            <p><strong>Project:</strong> Rice Farming Expansion</p>
-                            <p><strong>Amount Needed:</strong> ৳100,000</p>
-                            <label>Investment Amount:</label>
-                            <input type="number" class="form-control" placeholder="Enter amount">
-                        </div>
-                        <div class="modal-footer">
-                            <button class="btn btn-success">Confirm Investment</button>
-                            <button class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
         </div>
     </div>
 
     <!-- Bootstrap JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-
 </body>
-
 </html>
