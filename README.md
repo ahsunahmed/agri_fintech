@@ -6,7 +6,6 @@ AgriFinConnect is a web-based platform that connects farmers with potential inve
 
 ### For Farmers
 - Create and manage farming projects
-- Upload project documentation
 - Track investment status
 - Manage repayment schedules
 - Update project progress
