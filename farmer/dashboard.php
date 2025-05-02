@@ -1,22 +1,32 @@
 <?php
 session_start();
-
-include('../db.php'); 
+include('../db.php');
 
 if (!isset($_SESSION['id'])) {
-    header("Location: /auth/login.php");
+    header("Location: ../auth/login.php");
     exit();
 }
 
 $farmer_id = $_SESSION['id'];
 
-$db_connection = databaseconnect(); 
+$db_connection = databaseconnect();
 
-$query = "SELECT * FROM projects WHERE farmer_id = ?";
+// Fetch farmer's name and balance for the specific farmer
+$nameBalancequery = "SELECT full_name, balance FROM users WHERE id = ?";
+$stmt = $db_connection->prepare($nameBalancequery);
+$stmt->bind_param("i", $farmer_id);
+$stmt->execute();
+$result = $stmt->get_result();
+$farmerData = $result->fetch_assoc();
+$farmerName = $farmerData['full_name'] ?? 'Farmer';
+$balance = $farmerData['balance'] ?? 0; 
+
+// Fetch projects with status 'pending' for the specific farmer
+$query = "SELECT * FROM projects WHERE farmer_id = ? AND status = 'pending'";
 $statement = $db_connection->prepare($query);
 $statement->bind_param("i", $farmer_id);
 $statement->execute();
-$result = $statement->get_result();
+$resultProjects = $statement->get_result();
 
 // Fetch total projects count for the specific farmer
 $totalProjectsQuery = "SELECT COUNT(*) as totalProjects FROM projects WHERE farmer_id = '$farmer_id'";
@@ -39,16 +49,18 @@ $pendingInvestments = $pendingInvestmentsData['pendingInvestments'];
 $totalEarnings = 1500000; // Nedd to Replace with actual earnings data query when available
 
 $statement->close();
+$stmt->close();
 $db_connection->close();
 ?>
 
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Farmer Dashboard - AgriFinConnect</title>
-    
+
     <!-- Bootstrap CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <!-- Font Awesome -->
@@ -66,6 +78,7 @@ $db_connection->close();
         }
     </style>
 </head>
+
 <body>
 
     <!-- Top Navbar -->
@@ -79,17 +92,10 @@ $db_connection->close();
             </button>
             <div class="collapse navbar-collapse" id="navbarNav">
                 <ul class="navbar-nav ms-auto">
-                    <li class="nav-item dropdown">
-                        <a class="nav-link dropdown-toggle text-light" href="#" role="button" data-bs-toggle="dropdown">
-                            <i class="fas fa-user-circle me-1"></i> Farmer
-                        </a>
-                        <ul class="dropdown-menu dropdown-menu-end">
-                            <li><a class="dropdown-item" href="#"><i class="fas fa-user me-2"></i> Profile</a></li>
-                            <li><a class="dropdown-item" href="#"><i class="fas fa-cog me-2"></i> Settings</a></li>
-                            <li><hr class="dropdown-divider"></li>
-                            <li><a class="dropdown-item text-danger" href="logout.php"><i class="fas fa-sign-out-alt me-2"></i> Logout</a></li>
-                        </ul>
-                    </li>
+                    <li><span class="text-light btn btn-secondary me-2">Balance: ৳<?php echo number_format($balance, 2); ?></span></li>
+                    <li><a class="text-light btn btn-secondary me-2" href="../payment/add_money.php">Add Money</a></li>
+                    <li><a class="text-light btn btn-success me-2" href="../payment/withdraw_money.php">Withdraw Money</a></li>
+                    <li><a class="text-light btn btn-danger me-2" href="../auth/logout.php"><i class="fas fa-sign-out-alt me-2"></i>Logout</a></li>
                 </ul>
             </div>
         </div>
@@ -130,14 +136,14 @@ $db_connection->close();
             <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4 mt-4">
                 <div class="d-flex justify-content-between align-items-center mb-4">
                     <h1 class="h3">Dashboard Overview</h1>
-                    <button class="btn btn-primary">
-                        <i class="fas fa-download me-2"></i>Download Report
-                    </button>
                 </div>
-
+                <!-- Welcome Message in HTML -->
+                <div class="alert alert-success mt-4" role="alert">
+                    Welcome, <span><strong><?php echo htmlspecialchars($farmerName); ?></strong>!</span>
+                </div>
                 <!-- Dashboard Stats -->
                 <div class="row mb-4">
-                    <div class="col-xl-3 col-md-6 mb-4">
+                    <div class="col-xl-4 col-md-6 mb-4">
                         <div class="card bg-primary text-white h-100">
                             <div class="card-body d-flex justify-content-between">
                                 <div>
@@ -150,7 +156,7 @@ $db_connection->close();
                         </div>
                     </div>
 
-                    <div class="col-xl-3 col-md-6 mb-4">
+                    <div class="col-xl-4 col-md-6 mb-4">
                         <div class="card bg-success text-white h-100">
                             <div class="card-body d-flex justify-content-between">
                                 <div>
@@ -163,7 +169,7 @@ $db_connection->close();
                         </div>
                     </div>
 
-                    <div class="col-xl-3 col-md-6 mb-4">
+                    <div class="col-xl-4 col-md-6 mb-4">
                         <div class="card bg-warning text-white h-100">
                             <div class="card-body d-flex justify-content-between">
                                 <div>
@@ -175,25 +181,12 @@ $db_connection->close();
                             </div>
                         </div>
                     </div>
-
-                    <div class="col-xl-3 col-md-6 mb-4">
-                        <div class="card bg-danger text-white h-100">
-                            <div class="card-body d-flex justify-content-between">
-                                <div>
-                                    <h6 class="text-uppercase">Total Earnings</h6>
-                                    <h2>৳<?php echo number_format($totalEarnings); ?></h2>
-                                    <small class="text-white-50">+10% this month</small>
-                                </div>
-                                <i class="fas fa-hand-holding-usd fa-2x"></i>
-                            </div>
-                        </div>
-                    </div>
                 </div>
 
-                <!-- Recent Projects -->
+                <!-- Recent Projects (Pending only) -->
                 <div class="table-responsive">
                     <div class="d-flex justify-content-between align-items-center mb-4">
-                        <h5 class="mb-0">Recent Projects</h5>
+                        <h5 class="mb-0">Pending Projects</h5>
                         <a href="my_projects.php" class="btn btn-sm btn-primary">View All</a>
                     </div>
                     <table class="table table-hover">
@@ -206,25 +199,13 @@ $db_connection->close();
                         </thead>
                         <tbody>
                             <?php
-                            // Display the recent projects for the specific farmer
-                            while ($row = $result->fetch_assoc()) {
+                            // Display the pending projects for the specific farmer
+                            while ($row = $resultProjects->fetch_assoc()) {
                                 echo '<tr>';
                                 echo '<td>' . htmlspecialchars($row['title']) . '</td>';
                                 echo '<td>৳' . number_format($row['target_amount']) . '</td>';
-                                echo '<td><span class="badge ' . getBadgeClass($row['status']) . '">' . ucfirst($row['status']) . '</span></td>';
+                                echo '<td><span class="badge bg-warning">' . ucfirst($row['status']) . '</span></td>';
                                 echo '</tr>';
-                            }
-
-                            // Helper function to set badge class based on project status
-                            function getBadgeClass($status) {
-                                if ($status == 'approved') {
-                                    return 'bg-success';
-                                } elseif ($status == 'pending') {
-                                    return 'bg-warning';
-                                } elseif ($status == 'new') {
-                                    return 'bg-info';
-                                }
-                                return 'bg-secondary';
                             }
                             ?>
                         </tbody>
