@@ -1,5 +1,11 @@
 <?php
-include "../db.php"; 
+session_start();
+
+include "../db.php";
+if (!isset($_SESSION['admin_id'])) {
+    header("Location: ../auth/admin_login.php"); // Ensure this path is correct
+    exit();
+}
 $db_connection = databaseconnect();
 
 // Total Farmers
@@ -68,17 +74,7 @@ $db_connection->close();
             </button>
             <div class="collapse navbar-collapse" id="navbarNav">
                 <ul class="navbar-nav ms-auto">
-                    <li class="nav-item dropdown">
-                        <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
-                            <i class="fas fa-user-circle me-1"></i> Admin
-                        </a>
-                        <ul class="dropdown-menu dropdown-menu-end">
-                            <li><a class="dropdown-item" href="profile.php"><i class="fas fa-user me-2"></i>Profile</a></li>
-                            <li><a class="dropdown-item" href="#"><i class="fas fa-cog me-2"></i>Settings</a></li>
-                            <li><hr class="dropdown-divider"></li>
-                            <li><a class="dropdown-item text-danger" href="#"><i class="fas fa-sign-out-alt me-2"></i>Logout</a></li>
-                        </ul>
-                    </li>
+                    <li><a class="dropdown-item text-light" href="../auth/logout.php"><i class="fas fa-sign-out-alt me-2"></i>Logout</a></li>
                 </ul>
             </div>
         </div>
@@ -113,9 +109,6 @@ $db_connection->close();
         <!-- Page Header -->
         <div class="d-flex justify-content-between align-items-center mb-4">
             <h1 class="h3">Dashboard Overview</h1>
-            <button class="btn btn-primary">
-                <i class="fas fa-download me-2"></i>Download Report
-            </button>
         </div>
 
         <!-- Statistics Cards -->
@@ -200,7 +193,7 @@ $db_connection->close();
                 <div class="table-responsive">
                     <div class="d-flex justify-content-between align-items-center mb-4">
                         <h5 class="mb-0">Recent Projects</h5>
-                        <a href="projects.php" class="btn btn-sm btn-primary">View All</a>
+                        <a href="all_projects.php" class="btn btn-sm btn-primary">View All</a>
                     </div>
                     <table class="table table-hover">
                         <thead>
@@ -217,7 +210,7 @@ $db_connection->close();
                                     <td><?= $project['title'] ?></td>
                                     <td><?= $project['farmer'] ?></td>
                                     <td>৳<?= number_format($project['amount'], 2) ?></td>
-                                    <td><span class="badge bg-<?= strtolower($project['status']) ?>"><?= ucfirst($project['status']) ?></span></td>
+                                    <td><span class="text-dark badge bg-<?= strtolower($project['status']) ?>"><?= ucfirst($project['status']) ?></span></td>
                                 </tr>
                             <?php } ?>
                         </tbody>
