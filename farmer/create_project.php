@@ -21,7 +21,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     $duration = trim($_POST['duration']);
     $return_rate = trim($_POST['return_rate']);
     $description = trim($_POST['description']);
-    
+
     if (empty($title)) {
         $title_error = "Project name is required!";
         $error = true;
@@ -46,11 +46,11 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     if (!$error) {
         $db_connection = databaseconnect();
 
-        $statement = $db_connection->prepare("INSERT INTO projects (farmer_id, title, description, category, target_amount, raised_amount, start_date, end_date, status, created_at) VALUES (?, ?, ?, ?, ?, 0, NOW(), DATE_ADD(NOW(), INTERVAL ? MONTH), 'pending', NOW())");
-        $statement->bind_param("isssdd", $farmer_id, $title, $description, $category, $amount_needed, $duration);
-        
-        $category = "Agriculture"; 
-        
+        $statement = $db_connection->prepare("INSERT INTO projects (farmer_id, title, description, category, target_amount, raised_amount, start_date, end_date, status, created_at, roi) VALUES (?, ?, ?, ?, ?, 0, NOW(), DATE_ADD(NOW(), INTERVAL ? MONTH), 'pending', NOW(), ?)");
+        $statement->bind_param("isssdds", $farmer_id, $title, $description, $category, $amount_needed, $duration, $return_rate);
+
+        $category = "Agriculture";
+
         $statement->execute();
         $statement->close();
         $db_connection->close();
@@ -62,6 +62,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -75,20 +76,25 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     <style>
         /* Sidebar Styling */
         .sidebar {
-            height: 100vh; /* Full height */
+            height: 100vh;
+            /* Full height */
             width: 250px;
             position: fixed;
-            top: 56px; /* Push below navbar */
+            top: 56px;
+            /* Push below navbar */
             left: 0;
             background-color: #198754;
             padding-top: 20px;
             color: white;
         }
+
         .sidebar .nav-link {
             color: white;
             padding: 12px;
         }
-        .sidebar .nav-link:hover, .sidebar .nav-link.active {
+
+        .sidebar .nav-link:hover,
+        .sidebar .nav-link.active {
             background-color: rgba(255, 255, 255, 0.2);
         }
 
@@ -96,7 +102,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         .main-content {
             margin-left: 250px;
             padding: 20px;
-            padding-top: 80px; /* Prevent overlap with navbar */
+            padding-top: 80px;
+            /* Prevent overlap with navbar */
         }
 
         /* Responsive Design */
@@ -106,19 +113,21 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                 height: auto;
                 position: relative;
             }
+
             .main-content {
                 margin-left: 0;
             }
         }
     </style>
 </head>
+
 <body>
 
     <!-- Top Navbar -->
     <nav class="navbar navbar-expand-lg navbar-dark bg-success fixed-top">
         <div class="container-fluid">
             <a class="navbar-brand" href="#"><i class="fas fa-seedling me-2"></i> AgriFinConnect Farmer</a>
-            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+            <!-- <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
                 <span class="navbar-toggler-icon"></span>
             </button>
             <div class="collapse navbar-collapse" id="navbarNav">
@@ -130,12 +139,14 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                         <ul class="dropdown-menu dropdown-menu-end">
                             <li><a class="dropdown-item" href="#"><i class="fas fa-user me-2"></i> Profile</a></li>
                             <li><a class="dropdown-item" href="#"><i class="fas fa-cog me-2"></i> Settings</a></li>
-                            <li><hr class="dropdown-divider"></li>
+                            <li>
+                                <hr class="dropdown-divider">
+                            </li>
                             <li><a class="dropdown-item text-danger" href="#"><i class="fas fa-sign-out-alt me-2"></i> Logout</a></li>
                         </ul>
                     </li>
                 </ul>
-            </div>
+            </div> -->
         </div>
     </nav>
 
@@ -190,4 +201,5 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 
 </body>
+
 </html>
