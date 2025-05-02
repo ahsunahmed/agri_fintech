@@ -1,3 +1,29 @@
+<?php
+session_start();
+include('../db.php');
+
+if (!isset($_SESSION['id'])) {
+    header("Location: ../auth/login.php");
+    exit();
+}
+
+$farmer_id = $_SESSION['id'];
+
+$db_connection = databaseconnect();
+
+// Fetch farmer's name and balance for the specific farmer
+$nameBalancequery = "SELECT full_name, balance FROM users WHERE id = ?";
+$stmt = $db_connection->prepare($nameBalancequery);
+$stmt->bind_param("i", $farmer_id);
+$stmt->execute();
+$result = $stmt->get_result();
+$farmerData = $result->fetch_assoc();
+$farmerName = $farmerData['full_name'] ?? 'Farmer';
+$balance = $farmerData['balance'] ?? 0; 
+$stmt->close();
+$db_connection->close();
+?>
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -61,17 +87,9 @@
             </button>
             <div class="collapse navbar-collapse" id="navbarNav">
                 <ul class="navbar-nav ms-auto">
-                    <li class="nav-item dropdown">
-                        <a class="nav-link dropdown-toggle text-light" href="#" role="button" data-bs-toggle="dropdown">
-                            <i class="fas fa-user-circle me-1"></i> Investor
-                        </a>
-                        <ul class="dropdown-menu dropdown-menu-end">
-                            <li><a class="dropdown-item" href="#"><i class="fas fa-user me-2"></i> Profile</a></li>
-                            <li><a class="dropdown-item" href="#"><i class="fas fa-cog me-2"></i> Settings</a></li>
-                            <li><hr class="dropdown-divider"></li>
-                            <li><a class="dropdown-item text-danger" href="#"><i class="fas fa-sign-out-alt me-2"></i> Logout</a></li>
-                        </ul>
-                    </li>
+                <!-- <li><span class="text-light btn btn-secondary me-2">Balance: ৳<?php echo number_format($balance, 2); ?></span></li> -->
+                    <!-- <li><a class="text-light btn btn-secondary me-2sme-2" href="../payment/withdraw_money.php">Withdraw Money</a></li> -->
+                    <li><a class="text-light btn btn-danger me-2" href="../auth/logout.php"><i class="fas fa-sign-out-alt me-2"></i>Logout</a></li>
                 </ul>
             </div>
         </div>
@@ -81,9 +99,9 @@
     <div class="sidebar">
         <ul class="nav flex-column">
             <li class="nav-item"><a class="nav-link active" href="dashboard.php"><i class="fas fa-home me-2"></i> Dashboard</a></li>
-            <li class="nav-item"><a class="nav-link" href="investments.php"><i class="fas fa-money-bill-wave me-2"></i> My Investments</a></li>
-            <li class="nav-item"><a class="nav-link" href="projects.php"><i class="fas fa-seedling me-2"></i> Available Projects</a></li>
-            <li class="nav-item"><a class="nav-link" href="transactions.php"><i class="fas fa-receipt me-2"></i> Transactions</a></li>
+            <li class="nav-item"><a class="nav-link" href="my_investments.php"><i class="fas fa-money-bill-wave me-2"></i> My Investments</a></li>
+            <li class="nav-item"><a class="nav-link" href="browse_projects.php"><i class="fas fa-seedling me-2"></i> Available Projects</a></li>
+            
         </ul>
     </div>
 
@@ -93,50 +111,36 @@
             <!-- Dashboard Header -->
             <div class="d-flex justify-content-between align-items-center mb-4">
                 <h3 class="text-primary">Investor Dashboard</h3>
-                <button class="btn btn-primary"><i class="fas fa-download me-2"></i> Download Report</button>
             </div>
 
             <!-- Statistics Cards -->
             <div class="row">
-                <div class="col-md-3 mb-4">
+                <div class="col-md-4 mb-4">
                     <div class="card text-white bg-success">
                         <div class="card-body">
-                            <h6 class="text-uppercase">Total Investment</h6>
-                            <h2>৳250,000</h2>
+                            <h6 class="text-uppercase">Balance</h6>
+                            <h2>৳<?php echo number_format($balance, 2); ?></h2>
                             <small>+5% this month</small>
                         </div>
                     </div>
                 </div>
-                <div class="col-md-3 mb-4">
+                <div class="col-md-4 mb-4">
                     <div class="card text-white bg-warning">
                         <div class="card-body">
-                            <h6 class="text-uppercase">Returns Earned</h6>
-                            <h2>৳35,000</h2>
-                            <small>+3% this month</small>
+                            <h2><a class="text-light btn btn-warning me-2 me-2 fs-3" href="../payment/add_money.php">Add Money</a></h2>
                         </div>
                     </div>
                 </div>
-                <div class="col-md-3 mb-4">
-                    <div class="card text-white bg-info">
+                <div class="col-md-4 mb-4">
+                    <div class="card text-white bg-warning">
                         <div class="card-body">
-                            <h6 class="text-uppercase">Ongoing Projects</h6>
-                            <h2>5</h2>
-                            <small>2 new this month</small>
+                            <h2><a class="text-light btn btn-warning me-2 me-2 fs-3" href="../payment/withdraw_money.php">Withdraw Money</a></h2>
                         </div>
                     </div>
-                </div>
-                <div class="col-md-3 mb-4">
-                    <div class="card text-white bg-danger">
-                        <div class="card-body">
-                            <h6 class="text-uppercase">Pending Payments</h6>
-                            <h2>৳10,000</h2>
-                            <small>Due next week</small>
-                        </div>
-                    </div>
-                </div>
+                </div>>
             </div>
 
-            <!-- Recent Investments & Transactions -->
+            <!-- Recent Investments & Transactions
             <div class="row">
                 <div class="col-md-6">
                     <div class="card">
@@ -205,7 +209,7 @@
                         </div>
                     </div>
                 </div>
-            </div>
+            </div> -->
 
         </div>
     </div>
